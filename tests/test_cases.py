@@ -56,12 +56,27 @@ def test_add_book_title_too_long():
     assert success is False
     assert "title" in msg.lower()
 
-def test_add_book_duplicate_isbn():
-    # adding the same isbn twice -> should fail the second time
-    add_book_to_catalog("First", "Author", "9999999999999", 2)
-    success, msg = add_book_to_catalog("Second", "Author", "9999999999999", 3)
-    assert success is False
-    assert "isbn" in msg.lower()
+# older version
+# def test_add_book_duplicate_isbn():
+#     # adding the same isbn twice -> should fail the second time
+#     add_book_to_catalog("First", "Author", "9999999999999", 2)
+#     success, msg = add_book_to_catalog("Second", "Author", "9999999999999", 3)
+#     assert success is False
+#     assert "isbn" in msg.lower()
+
+def test_add_book_duplicate_isbn(mocker):
+    # Patch DB lookup to simulate first insert succeeds, second fails due to duplicate ISBN
+    mocker.patch("services.library_service.get_book_by_isbn", side_effect=[None, {"id": 1}])
+    mocker.patch("services.library_service.insert_book", return_value=True)
+
+    # first call – ok
+    success1, _ = add_book_to_catalog("First", "Author", "9999999999999", 2)
+    assert success1 is True
+
+    # second call – duplicate detected
+    success2, msg2 = add_book_to_catalog("Second", "Author", "9999999999999", 2)
+    assert success2 is False
+    assert "already exists" in msg2.lower()
 
 # r2 : book catalog display
 
