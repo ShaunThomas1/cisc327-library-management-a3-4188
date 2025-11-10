@@ -1,7 +1,3 @@
-"""
-Routes Package - Initialize all route blueprints
-"""
-
 from .catalog_routes import catalog_bp
 from .borrowing_routes import borrowing_bp
 from .search_routes import search_bp

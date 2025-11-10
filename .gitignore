@@ -12,3 +12,6 @@ __pycache__/
 # --- Documents and reports (to keep submission clean) ---
 *.pdf
 *.docx
+
+htmlcov/
+.coverage

@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timedelta
 
-from library_service import (
+from services.library_service import (
     add_book_to_catalog,
     borrow_book_by_patron,
     return_book_by_patron,
@@ -17,11 +17,22 @@ from database import get_all_books
 # R1: Add Book To Catalog
 # ------------------------
 
-def test_add_book_success_minimal_title_author():
-    # Minimal title (1 char), author (1 char), valid ISBN & copies
+# older version
+# def test_add_book_success_minimal_title_author():
+#     # Minimal title (1 char), author (1 char), valid ISBN & copies
+#     success, msg = add_book_to_catalog("Z", "K", "1234567890123", 2)
+#     assert success is True
+#     assert "success" in msg.lower()
+
+# --- PATCH: replaces the original test_add_book_success_minimal_title_author ---
+def test_add_book_success_minimal_title_author(mocker):
+    mocker.patch("services.library_service.get_book_by_isbn", return_value=None)
+    mocker.patch("services.library_service.insert_book", return_value=True)
+
     success, msg = add_book_to_catalog("Z", "K", "1234567890123", 2)
     assert success is True
     assert "success" in msg.lower()
+
 
 def test_add_book_fail_title_all_spaces():
     # Title with spaces only counts as empty -> fail
@@ -72,17 +83,42 @@ def test_borrow_fail_patron_id_invalid_length():
     assert success is False
     assert "patron" in msg.lower()
 
-def test_borrow_fail_nonexistent_book():
-    # Book ID that likely doesn't exist (-1)
+# older version
+# def test_borrow_fail_nonexistent_book():
+#     # Book ID that likely doesn't exist (-1)
+#     success, msg = borrow_book_by_patron("123456", -1)
+#     assert not success
+#     assert "not found" in msg.lower()
+
+# --- PATCH: replaces the original test_borrow_fail_nonexistent_book ---
+def test_borrow_fail_nonexistent_book(mocker):
+    # Ensuring the patron is not at limit; forces "book not found"
+    mocker.patch("services.library_service.get_patron_borrow_count", return_value=0)
+    mocker.patch("services.library_service.get_book_by_id", return_value=None)
+
     success, msg = borrow_book_by_patron("123456", -1)
     assert not success
     assert "not found" in msg.lower()
 
-def test_borrow_fail_unavailable_book():
-    # If book with id=3 exists but has no available copies (set manually), should fail
+
+# older version
+# def test_borrow_fail_unavailable_book():
+#     # If book with id=3 exists but has no available copies (set manually), should fail
+#     success, msg = borrow_book_by_patron("123456", 3)
+#     assert not success
+#     assert "not available" in msg.lower()
+
+# --- PATCH: replaces the original test_borrow_fail_unavailable_book ---
+def test_borrow_fail_unavailable_book(mocker):
+    # Ensure patron under limit; force available_copies = 0
+    mocker.patch("services.library_service.get_patron_borrow_count", return_value=0)
+    mocker.patch("services.library_service.get_book_by_id", return_value={"id": 3, "title": "1984", "available_copies": 0})
+
     success, msg = borrow_book_by_patron("123456", 3)
     assert not success
     assert "not available" in msg.lower()
+
+
 
 def test_borrow_fail_exceeding_limit():
     # Try to borrow when patron already has 5 books (use known patron or repeat)
@@ -114,12 +150,35 @@ def test_return_fail_not_borrowed_book():
     success, msg = return_book_by_patron("777777", 9999)
     assert not success
 
-def test_return_fail_double_return():
-    # Return book twice causes second attempt to fail
+# older version
+# def test_return_fail_double_return():
+#     # Return book twice causes second attempt to fail
+#     borrow_book_by_patron("123123", 1)
+#     return_book_by_patron("123123", 1)
+#     success, msg = return_book_by_patron("123123", 1)
+#     assert not success
+
+# --- PATCH: replaces the original test_return_fail_double_return ---
+def test_return_fail_double_return(mocker):
+    # Borrow succeeds
+    mocker.patch("services.library_service.get_patron_borrow_count", return_value=0)
+    mocker.patch("services.library_service.get_book_by_id", return_value={"id": 1, "title": "Book", "available_copies": 1})
+    mocker.patch("services.library_service.insert_borrow_record", return_value=True)
+    mocker.patch("services.library_service.update_book_availability", return_value=True)
     borrow_book_by_patron("123123", 1)
-    return_book_by_patron("123123", 1)
+
+    # First return succeeds
+    mocker.patch("services.library_service.get_book_by_id", return_value={"id": 1, "title": "Book", "available_copies": 0})
+    mocker.patch("services.library_service.update_borrow_record_return_date", return_value=True)
+    mocker.patch("services.library_service.update_book_availability", return_value=True)
+    assert return_book_by_patron("123123", 1)[0] is True
+
+    # Second return fails (no active record)
+    mocker.patch("services.library_service.get_book_by_id", return_value={"id": 1, "title": "Book", "available_copies": 1})
+    mocker.patch("services.library_service.update_borrow_record_return_date", return_value=False)
     success, msg = return_book_by_patron("123123", 1)
     assert not success
+    assert "no active borrow record" in msg.lower()
 
 def test_return_fail_nonexistent_book():
     # Return book that does not exist in catalog
