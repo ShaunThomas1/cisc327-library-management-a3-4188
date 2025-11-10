@@ -179,10 +179,13 @@ def test_return_fail_double_return(mocker):
     assert not success
 
 
-def test_return_fail_nonexistent_book():
+def test_return_fail_nonexistent_book(mocker):
+    # Patch DB so get_book_by_id returns None → triggers "Book not found."
+    mocker.patch("services.library_service.get_book_by_id", return_value=None)
+
     success, msg = return_book_by_patron("123456", 9999)
     assert not success
-
+    assert "not found" in msg.lower()
 
 # ------------------------
 # R5: Late Fee Calculation
