@@ -91,13 +91,11 @@ def test_catalog_not_empty(mocker):
         {"id": 1, "title": "A Book", "author": "X", "isbn": "123", "total_copies": 3, "available_copies": 2}
     ]
 
-    # Patch library_service
+    # Patch all possible references to get_all_books()
     mocker.patch("services.library_service.get_all_books", return_value=fake_books)
-
-    # Patch the function imported directly into the test file
     mocker.patch("tests.test_cases.get_all_books", return_value=fake_books)
+    mocker.patch("database.get_all_books", return_value=fake_books)
 
-    # Now this call will use the mocked version
     books = get_all_books()
     assert len(books) > 0
 
