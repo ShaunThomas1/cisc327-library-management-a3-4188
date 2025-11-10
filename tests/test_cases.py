@@ -238,20 +238,58 @@ def test_late_fee_max_cap():
 # R6 – SEARCH
 # ------------------------------------------------------------------------------
 
-def test_search_by_title_partial():
-    assert isinstance(search_books_in_catalog("great", "title"), list)
+def test_search_by_title_partial(mocker):
+    fake_books = [
+        {"id": 1, "title": "The Great Gatsby", "author": "F. Scott Fitzgerald", "isbn": "9780743273565", "total_copies": 3, "available_copies": 1},
+        {"id": 2, "title": "Great Expectations", "author": "Charles Dickens", "isbn": "9780141439563", "total_copies": 2, "available_copies": 2},
+        {"id": 3, "title": "Clean Code", "author": "Robert C. Martin", "isbn": "9780132350884", "total_copies": 4, "available_copies": 4},
+    ]
+    # Patch service-layer dependency
+    mocker.patch("services.library_service.get_all_books", return_value=fake_books)
+
+    results = search_books_in_catalog("great", "title")
+    assert isinstance(results, list)
+    assert len(results) == 2
+    assert all("great" in b["title"].lower() for b in results)
 
 
-def test_search_by_author_partial():
-    assert isinstance(search_books_in_catalog("orwell", "author"), list)
+def test_search_by_author_partial(mocker):
+    fake_books = [
+        {"id": 1, "title": "Dune", "author": "Frank Herbert", "isbn": "9780441172719", "total_copies": 5, "available_copies": 3},
+        {"id": 2, "title": "It", "author": "Stephen King", "isbn": "9781501142970", "total_copies": 2, "available_copies": 2},
+        {"id": 3, "title": "Misery", "author": "Stephen King", "isbn": "9780450417399", "total_copies": 2, "available_copies": 1},
+    ]
+    mocker.patch("services.library_service.get_all_books", return_value=fake_books)
+
+    results = search_books_in_catalog("king", "author")
+    assert isinstance(results, list)
+    assert len(results) == 2
+    assert all("king" in b["author"].lower() for b in results)
 
 
-def test_search_by_isbn_exact():
-    assert isinstance(search_books_in_catalog("9780451524935", "isbn"), list)
+def test_search_by_isbn_exact(mocker):
+    fake_books = [
+        {"id": 1, "title": "Book A", "author": "A", "isbn": "9780451524935", "total_copies": 1, "available_copies": 1},
+        {"id": 2, "title": "Book B", "author": "B", "isbn": "1234567890123", "total_copies": 2, "available_copies": 2},
+    ]
+    mocker.patch("services.library_service.get_all_books", return_value=fake_books)
+
+    results = search_books_in_catalog("9780451524935", "isbn")
+    assert isinstance(results, list)
+    assert len(results) == 1
+    assert results[0]["isbn"] == "9780451524935"
 
 
-def test_search_no_results():
-    assert search_books_in_catalog("nonexistent", "title") == []
+def test_search_no_results(mocker):
+    fake_books = [
+        {"id": 1, "title": "Operating Systems", "author": "Silberschatz", "isbn": "1111111111111", "total_copies": 3, "available_copies": 2},
+        {"id": 2, "title": "Computer Networks", "author": "Tanenbaum", "isbn": "2222222222222", "total_copies": 2, "available_copies": 2},
+    ]
+    mocker.patch("services.library_service.get_all_books", return_value=fake_books)
+
+    results = search_books_in_catalog("nonexistentbooktitle", "title")
+    assert results == []
+
 
 # ------------------------------------------------------------------------------
 # R7 – PATRON STATUS
